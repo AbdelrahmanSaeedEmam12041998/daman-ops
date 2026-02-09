@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>Daman Operations | Dispute System</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f0f2f5; margin: 0; padding: 20px; }
+        .card { background: white; max-width: 600px; margin: auto; padding: 30px; border-radius: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        h2 { color: #0056b3; text-align: center; }
+        label { display: block; margin-top: 15px; font-weight: bold; }
+        input, select { width: 100%; padding: 12px; margin-top: 5px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
+        button { width: 100%; padding: 15px; background-color: #28a745; color: white; border: none; border-radius: 8px; margin-top: 25px; cursor: pointer; font-size: 16px; font-weight: bold; }
+        button:hover { background-color: #218838; }
+        button:disabled { background-color: #ccc; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h2>تسجيل نزاع جديد - ضامن</h2>
+        <form id="disputeForm">
+            <label>رقم العملية (Provider Op Number)</label>
+            <input type="text" id="providerOpNum" required>
+
+            <label>رقم العملية الأساسي (Operation Number)</label>
+            <input type="text" id="opNum" required>
+
+            <label>المبلغ (Amount)</label>
+            <input type="number" id="amount" required>
+
+            <label>اسم التاجر</label>
+            <input type="text" id="merchantName">
+
+            <label>حالة المزود (Provider Status)</label>
+            <select id="providerStatus">
+                <option value="Pending">Pending</option>
+                <option value="Success">Success</option>
+                <option value="Failed">Failed</option>
+            </select>
+
+            <button type="submit" id="submitBtn">حفظ في Google Sheets</button>
+        </form>
+    </div>
+
+    <script>
+        // ضع الرابط الخاص بك هنا
+        const scriptURL = 'رابط_جوجل_سكريبت_هنا';
+        const form = document.getElementById('disputeForm');
+
+        form.addEventListener('submit', e => {
+            e.preventDefault();
+            const btn = document.getElementById('submitBtn');
+            btn.disabled = true;
+            btn.innerText = "جاري الحفظ...";
+
+            const formData = {
+                providerOpNum: document.getElementById('providerOpNum').value,
+                opNum: document.getElementById('opNum').value,
+                amount: document.getElementById('amount').value,
+                merchantName: document.getElementById('merchantName').value,
+                providerStatus: document.getElementById('providerStatus').value,
+                extraInfo: "Web App Entry"
+            };
+
+            fetch(scriptURL, { method: 'POST', body: JSON.stringify(formData) })
+            .then(response => {
+                alert('تم التسجيل بنجاح في الشيت!');
+                form.reset();
+                btn.disabled = false;
+                btn.innerText = "حفظ في Google Sheets";
+            })
+            .catch(error => {
+                alert('خطأ في الإرسال!');
+                btn.disabled = false;
+            });
+        });
+    </script>
+</body>
+</html>
