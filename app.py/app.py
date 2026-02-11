@@ -27,7 +27,7 @@ def check_password():
     return True
 
 if check_password():
-    # --- 3. روابط الـ 6 شيتات (ضع روابط الـ Deployment الخاصة بك هنا) ---
+    # --- 3. روابط الـ 6 شيتات (ضع روابط الـ Deployment الحقيقية هنا) ---
     SHEETS_CONFIG = {
         "Damen's complaint": "https://script.google.com/macros/s/AKfycbzP6mE69f30pNZtzz3pSYXlgOt24OpXTXjp0bbfCAYS8fuRemmVtmtLlXR-kXT4UxU4/exec",
         "Cases V.f cash": "https://script.google.com/macros/s/AKfycbwKraVqeycfh_p78Ofpdu6gDKus9KEiHP_BHmSJAHMBNYlU1CduebbMUvbj3k7IxPK2iA/exec",
@@ -59,11 +59,10 @@ if check_password():
 
     st.title(f"🛡️ معالجة بيانات: {target_sheet}")
 
-    # تحضير قائمة لتخزين البيانات في الجلسة
     if 'data_to_send' not in st.session_state:
         st.session_state['data_to_send'] = []
 
-    # --- 5. منطق الرفع الجماعي (Bulk Upload) ---
+    # --- 5. منطق الرفع الجماعي (Bulk Upload) المحدث بناءً على صورتك ---
     if input_mode == "رفع ملف Excel كامل":
         uploaded_file = st.file_uploader("اختر ملف الإكسيل الخارجي", type=["xlsx", "xls"])
         if uploaded_file:
@@ -74,23 +73,30 @@ if check_password():
             if st.button("تحويل وترتيب البيانات فوراً ⚙️"):
                 temp_list = []
                 for _, row in df_in.iterrows():
-                    op = str(row.get('رقم_العملية', ''))
+                    # سحب البيانات بناءً على أسماء الأعمدة في ملفك المرفوع
+                    op = str(row.get('ID', ''))
                     final_op = op if target_sheet == "Refund Transactions" else f"Damen{op}"
                     today = datetime.now().strftime("%Y-%m-%d")
+                    
+                    m_code = row.get('كود_التاجر', '')
+                    m_name = row.get('اسم_التاجر', '')
+                    gov_name = row.get('اسم_المحافظه', '')
+                    total_amt = row.get('القيمه_الكليه', 0)
 
-                    # الترتيب حسب نوع الشيت المختار
+                    # الترتيب الاحترافي المتفق عليه
                     if target_sheet == "Refund Transactions":
-                        data = [final_op, row.get('معلومات_اضافيه',''), row.get('الرقم_المرجعي',''), row.get('تاريخ_الانشاء',''), row.get('القيمه_الكليه',0), row.get('اسم_الخدمة',''), row.get('مزود_الخدمة_الاساسي',''), row.get('اسم_التاجر','')]
+                        data = [final_op, "رفع جماعي", "", "", total_amt, "", "", m_name]
                     elif target_sheet == "successful Receipt":
-                        data = [selected_user, row.get('مزود_الخدمة_الاساسي',''), row.get('تاريخ_الانشاء',''), row.get('القيمه_الكليه',0), row.get('معلومات_اضافيه',''), final_op, row.get('اسم_الخدمة',''), today]
+                        data = [selected_user, "", "", total_amt, "رفع جماعي", final_op, "", today]
                     elif any(x in target_sheet for x in ["V.f", "Orange", "Etisalat"]):
-                        data = [selected_user, row.get('معلومات_اضافيه',''), row.get('الرقم_المرجعي',''), row.get('تاريخ_الانشاء',''), row.get('القيمه_الكليه',0), final_op, "", row.get('كود_التاجر',''), row.get('اسم_التاجر',''), row.get('اسم_المحافظه',''), today]
+                        # [User, ملاحظات, مرجع, إنشاء, مبلغ, عملية, فراغ, كود, تاجر, محافظة, اليوم]
+                        data = [selected_user, "رفع جماعي", "", "", total_amt, final_op, "", m_code, m_name, gov_name, today]
                     else: # Damen's complaint
-                        data = [selected_user, row.get('مزود_الخدمة_الاساسي',''), row.get('معلومات_اضافيه',''), row.get('الرقم_المرجعي',''), row.get('تاريخ_الانشاء',''), row.get('القيمه_الكليه',0), final_op, row.get('اسم_الخدمة',''), row.get('كود_التاجر',''), row.get('اسم_التاجر',''), row.get('اسم_المحافظه',''), today]
+                        data = [selected_user, "", "رفع جماعي", "", "", total_amt, final_op, "", m_code, m_name, gov_name, today]
                     
                     temp_list.append(data)
                 st.session_state['data_to_send'] = temp_list
-                st.success(f"✅ تم ترتيب {len(temp_list)} صف وفقاً لترتيب {target_sheet}!")
+                st.success(f"✅ تم ترتيب {len(temp_list)} صف بنجاح!")
 
     # --- 6. منطق الإدخال اليدوي ---
     else:
@@ -98,7 +104,7 @@ if check_password():
             c1, c2 = st.columns(2)
             with c1:
                 op_num = st.text_input("رقم العملية")
-                p_provider = st.text_input("مزود الخدمة الأساسي")
+                p_provider = st.text_input("مزود الخدمة")
                 amount = st.number_input("القيمة الكلية", min_value=0.0)
                 ref_num = st.text_input("الرقم المرجعي")
             with c2:
@@ -124,24 +130,21 @@ if check_password():
                 
                 st.session_state['data_to_send'] = [data]
 
-    # --- 7. التنفيذ النهائي (إرسال أو تحميل) ---
+    # --- 7. التنفيذ النهائي ---
     if st.session_state['data_to_send']:
-        st.write("### 📋 المعاينة المترتبة:")
+        st.write("### 📋 المعاينة المترتبة (جاهز للتنفيذ):")
         final_df = pd.DataFrame(st.session_state['data_to_send'])
-        st.dataframe(final_df)
+        st.table(final_df) # عرض كجدول واضح
 
         if action_type == "حفظ أونلاين (Google Sheet)":
             if st.button("تأكيد الإرسال النهائي 🚀"):
                 for row in st.session_state['data_to_send']:
-                    try:
-                        requests.post(SHEETS_CONFIG[target_sheet], json={"payload": row})
-                    except:
-                        pass
+                    try: requests.post(SHEETS_CONFIG[target_sheet], json={"payload": row})
+                    except: pass
                 st.success("✅ تم الإرسال بنجاح!")
                 st.session_state['data_to_send'] = []
         else:
             output = BytesIO()
             with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-                # التحميل بدون العناوين ليتوافق مع لصق البيانات المباشر
                 final_df.to_excel(writer, index=False, header=False)
             st.download_button("📥 تحميل الإكسيل المترتب", output.getvalue(), f"Damen_{target_sheet}.xlsx")
