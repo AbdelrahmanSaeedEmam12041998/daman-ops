@@ -83,4 +83,15 @@ else:
 
                 # تحويل لإكسيل
                 output = BytesIO()
-                with pd.ExcelWriter
+                with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+                    # السر هنا: index=False و header=False عشان الداتا تبدأ من الخلية A1
+                    df_final.to_excel(writer, index=False, header=False)
+                
+                st.download_button(
+                    label="📥 تحميل الملف الصافي (جاهز للصق)",
+                    data=output.getvalue(),
+                    file_name=f"Clean_{target_sheet}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                )
+        except Exception as e:
+            st.error(f"⚠️ تأكد من وجود عمود 'ID' و 'القيمه_الكليه'. الخطأ: {e}")
