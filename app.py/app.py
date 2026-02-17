@@ -2,13 +2,13 @@ import streamlit as st
 import pandas as pd
 from io import BytesIO
 
-# --- 1. واجهة مستخدم احترافية (Modern White) ---
+# --- 1. تصميم واجهة نظيفة وعالمية ---
 st.set_page_config(page_title="Daman Logic Pro", layout="wide")
 st.markdown("""
     <style>
-    .stApp { background-color: #ffffff; }
+    .stApp { background-color: #ffffff; color: #333; }
     .main-header { font-size: 28px; color: #1e40af; font-weight: bold; text-align: center; padding: 20px; border-bottom: 2px solid #f3f4f6; }
-    .stButton>button { background-color: #2563eb; color: white; width: 100%; border-radius: 8px; font-weight: bold; height: 3em; }
+    .stButton>button { background-color: #2563eb; color: white; width: 100%; border-radius: 8px; font-weight: bold; height: 3em; border: none; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -20,6 +20,7 @@ if not st.session_state["authenticated"]:
         if pwd == "Dispute@Damen.1248#1248*":
             st.session_state["authenticated"] = True
             st.rerun()
+        else: st.error("❌ خطأ")
 else:
     with st.sidebar:
         target_sheet = st.selectbox("🎯 اختر نوع الشيت المطلوب:", 
@@ -36,7 +37,7 @@ else:
             if st.button("ابدأ الترتيب الصارم"):
                 final_rows = []
                 for _, row in df_raw.iterrows():
-                    # تجهيز المتغيرات
+                    # 1. استخراج وتنظيف الداتا
                     raw_id = str(row.get('ID', '')).split('.')[0].strip()
                     f_id = raw_id if target_sheet == "Refund Transactions" else f"Damen{raw_id}"
                     amt = row.get('القيمه_الكليه', '')
@@ -47,37 +48,37 @@ else:
                     serv = row.get('اسم_الخدمة', '')
                     date = row.get('تاريخ_الإنشاء', '')
 
-                    # --- الترتيب الحرفي بناءً على ملف Sheets.xlsx المرفوع ---
+                    # 2. بناء الصف بناءً على ترتيب ملف Sheets.xlsx
                     if target_sheet == "Damen's complaint":
-                        # مزود | معلومات | مرجع | تاريخ | قيمة | رقم عملية | خدمة | كود | تاجر | محافظة
+                        #: مزود | معلومات | مرجع | تاريخ | قيمة | رقم عملية | خدمة | كود | تاجر | محافظة
                         line = [prov, "رفع جماعي", "", date, amt, f_id, serv, m_code, m_name, gov]
                     
                     elif target_sheet in ["Cases V.f cash", "Orange cash", "Etisalat Cash"]:
-                        # معلومات | مرجع | تاريخ | قيمة | رقم عملية | كود | تاجر | محافظة
+                        #: معلومات | مرجع | تاريخ | قيمة | رقم عملية | كود | تاجر | محافظة
                         line = ["رفع جماعي", "", date, amt, f_id, m_code, m_name, gov]
                     
                     elif target_sheet == "successful Receipt":
-                        # مزود | تاريخ | قيمة | معلومات | رقم عملية | خدمة
+                        #: مزود | تاريخ | قيمة | معلومات | رقم عملية | خدمة
                         line = [prov, date, amt, "رفع جماعي", f_id, serv]
                     
-                    else: # Refund Transactions
-                        # رقم عملية | معلومات | مرجع | تاريخ | قيمة | خدمة | مزود | تاجر
+                    else: # Refund Transactions (Reconciliation)
+                        #: رقم عملية | معلومات | مرجع | تاريخ | قيمة | خدمة | مزود | تاجر
                         line = [f_id, "رفع جماعي", "", date, amt, serv, prov, m_name]
                     
                     final_rows.append(line)
 
+                # إنشاء شيت جديد تماماً بدون Header أو Index
                 df_final = pd.DataFrame(final_rows)
                 
-                # معاينة واضحة
-                st.write("📋 المعاينة النهائية قبل التحميل:")
+                st.write("📋 معاينة الداتا (تبدأ من أول عمود على الشمال A):")
                 st.table(df_final.head(10))
 
-                # التصدير مع ضبط الاتجاه
+                # التصدير الصحيح (LTR)
                 output = BytesIO()
                 with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-                    df_final.to_excel(writer, index=False, header=False, sheet_name='Result')
-                    writer.sheets['Result'].set_right_to_left(False) # من الشمال لليمين
+                    df_final.to_excel(writer, index=False, header=False, sheet_name='Sheet1')
+                    writer.sheets['Sheet1'].set_right_to_left(False) # اتجاه شمال ليمين
                 
-                st.download_button("📥 تحميل الملف الآن", output.getvalue(), f"{target_sheet}.xlsx")
+                st.download_button("📥 تحميل الملف المظبوط", output.getvalue(), f"{target_sheet}.xlsx")
         except Exception as e:
-            st.error(f"حدث خطأ في قراءة البيانات: {e}")
+            st.error(f"⚠️ حدث خطأ: {e}")
