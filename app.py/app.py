@@ -21,7 +21,6 @@ if not st.session_state["authenticated"]:
             st.rerun()
         else: st.error("❌ خطأ")
 else:
-    # --- 3. الإعدادات ---
     with st.sidebar:
         if os.path.exists("logo.png"): st.image("logo.png", use_container_width=True)
         target_sheet = st.selectbox("🎯 نوع الشيت المستهدف:", 
@@ -29,63 +28,60 @@ else:
                                     "Etisalat Cash", "successful Receipt", "Refund Transactions"])
 
     st.title(f"⚡ تحويل البيانات لـ: {target_sheet}")
-
     uploaded_file = st.file_uploader("ارفع الملف الخام", type=["xlsx", "xls"])
     
     if uploaded_file:
         try:
-            # قراءة الملف مع التأكد من المكتبة
             df_in = pd.read_excel(uploaded_file, engine='openpyxl').fillna("")
             
             if st.button("🪄 ترتيب الداتا فوراً"):
                 processed_data = []
                 for _, row in df_in.iterrows():
-                    # سحب القيم من ملفك الأصلي (تأكد من مطابقة الأسماء في الإكسيل المرفوع)
-                    raw_id = str(row.get('ID', '')).split('.')[0] # تنظيف الرقم من أي علامات عشرية
+                    # 1. استخراج رقم العملية وتنظيفه تماماً من أي ".0"
+                    raw_id = str(row.get('ID', '')).split('.')[0].strip()
                     final_op = raw_id if target_sheet == "Refund Transactions" else f"Damen{raw_id}"
                     
+                    # 2. سحب البيانات الأساسية
                     amt = row.get('القيمه_الكليه', '')
                     m_code = row.get('كود_التاجر', '')
                     m_name = row.get('اسم_التاجر', '')
                     gov = row.get('اسم_المحافظه', '')
                     p_provider = row.get('مزود_الخدمة_الاساسي', '')
                     service = row.get('اسم_الخدمة', '')
-                    # استخراج التاريخ بشكل نظيف
-                    raw_date = row.get('تاريخ_الإنشاء', '')
-                    date_val = pd.to_datetime(raw_date).strftime('%Y-%m-%d') if raw_date != "" else ""
-
-                    # --- الترتيب الصارم (بدون أعمدة فاضية في البداية) ---
                     
+                    # 3. الترتيب القاتل (بناءً على صورة الترتيب image_d1f95c)
                     if target_sheet == "Damen's complaint":
-                        # ترتيب: مزود، ملاحظات، مرجع، تاريخ، قيمة، رقم عملية، خدمة، كود، تاجر، محافظة
-                        data = [p_provider, "رفع جماعي", "", date_val, amt, final_op, service, m_code, m_name, gov]
+                        # [0]مزود | [1]رفع جماعي | [2]مرجع(فاضي) | [3]تاريخ(فاضي) | [4]مبلغ | [5]DamenID | [6]خدمة | [7]كود | [8]تاجر | [9]محافظة
+                        data = [p_provider, "رفع جماعي", "", "", amt, final_op, service, m_code, m_name, gov]
                     
                     elif any(x in target_sheet for x in ["V.f", "Orange", "Etisalat"]):
-                        # ترتيب: ملاحظات، مرجع، تاريخ، قيمة، رقم عملية، كود، تاجر، محافظة
-                        data = ["رفع جماعي", "", date_val, amt, final_op, m_code, m_name, gov]
+                        # [0]رفع جماعي | [1]مرجع(فاضي) | [2]تاريخ(فاضي) | [3]مبلغ | [4]DamenID | [5]فراغ | [6]كود | [7]تاجر | [8]محافظة
+                        # لاحظ: رقم العملية هنا هو العمود رقم 5 (Index 4)
+                        data = ["رفع جماعي", "", "", amt, final_op, "", m_code, m_name, gov]
                     
                     elif target_sheet == "successful Receipt":
-                        # ترتيب: مزود، تاريخ، قيمة، ملاحظات، رقم عملية، خدمة
-                        data = [p_provider, date_val, amt, "رفع جماعي", final_op, service]
+                        # [0]مزود | [1]تاريخ(فاضي) | [2]مبلغ | [3]رفع جماعي | [4]DamenID | [5]خدمة
+                        data = [p_provider, "", amt, "رفع جماعي", final_op, service]
                     
                     elif target_sheet == "Refund Transactions":
-                        # ترتيب: رقم عملية، ملاحظات، مرجع، تاريخ، قيمة، خدمة، مزود، تاجر
-                        data = [final_op, "رفع جماعي", "", date_val, amt, service, p_provider, m_name]
+                        # [0]ID_صافي | [1]رفع جماعي | [2]مرجع(فاضي) | [3]تاريخ(فاضي) | [4]مبلغ | [5]خدمة | [6]مزود | [7]تاجر
+                        data = [final_op, "رفع جماعي", "", "", amt, service, p_provider, m_name]
 
                     processed_data.append(data)
 
                 final_df = pd.DataFrame(processed_data)
                 
-                # إزالة أي أعمدة فارغة تماماً في بداية الجدول لضمان الـ Paste المظبوط
-                st.success("✅ تم الترتيب بنجاح!")
-                st.dataframe(final_df) # عرض للتأكد
+                st.success("✅ تم الترتيب!")
+                # المعاينة للتأكد قبل التحميل
+                st.write("👀 تأكد من ترتيب الأعمدة في الجدول أدناه:")
+                st.table(final_df.head(10)) 
 
                 output = BytesIO()
                 with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-                    # التحويل بدون Header وبدون Index وبدون أي زحزحة
+                    # header=False و index=False عشان ميبقاش فيه أي عمود زيادة
                     final_df.to_excel(writer, index=False, header=False)
                 
-                st.download_button("📥 تحميل الملف النهائي", output.getvalue(), f"{target_sheet}_Ready.xlsx")
+                st.download_button("📥 تحميل ملف الـ Paste المباشر", output.getvalue(), f"{target_sheet}_READY.xlsx")
 
         except Exception as e:
-            st.error(f"⚠️ تأكد من أسماء الأعمدة في ملفك (ID، القيمه_الكليه). الخطأ: {e}")
+            st.error(f"⚠️ خطأ: {e}")
