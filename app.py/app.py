@@ -47,3 +47,52 @@ else:
                     final_id = raw_id if target_sheet == "Refund Transactions" else f"Damen{raw_id}"
                     
                     amt = row.get('القيمه_الكليه', '')
+                    m_code = row.get('كود_التاجر', '')
+                    m_name = row.get('اسم_التاجر', '')
+                    gov = row.get('اسم_المحافظه', '')
+                    provider = row.get('مزود_الخدمة_الاساسي', '')
+                    service = row.get('اسم_الخدمة', '')
+                    date_val = row.get('تاريخ_الإنشاء', '')
+
+                    # 2. بناء الصف الصافي (الترتيب من العمود A فوراً)
+                    # الترتيب بناءً على صورة الكتالوج (image_152763.png)
+                    if target_sheet == "Damen's complaint":
+                        # [A]مزود | [B]ملاحظات | [C]مرجع | [D]تاريخ | [E]قيمة | [F]ID | [G]خدمة | [H]كود | [I]تاجر | [J]محافظة
+                        new_row = [provider, "رفع جماعي", "", date_val, amt, final_id, service, m_code, m_name, gov]
+                    
+                    elif any(x in target_sheet for x in ["V.f", "Orange", "Etisalat"]):
+                        # [A]ملاحظات | [B]مرجع | [C]تاريخ | [D]قيمة | [E]ID | [F]كود | [G]تاجر | [H]محافظة
+                        new_row = ["رفع جماعي", "", date_val, amt, final_id, m_code, m_name, gov]
+                    
+                    elif target_sheet == "successful Receipt":
+                        # [A]مزود | [B]تاريخ | [C]قيمة | [D]ملاحظات | [E]ID | [F]خدمة
+                        new_row = [provider, date_val, amt, "رفع جماعي", final_id, service]
+                    
+                    else: # Refund Transactions
+                        # [A]ID | [B]ملاحظات | [C]مرجع | [D]تاريخ | [E]قيمة | [F]خدمة | [G]مزود | [H]تاجر
+                        new_row = [final_id, "رفع جماعي", "", date_val, amt, service, provider, m_name]
+                    
+                    final_data_list.append(new_row)
+
+                # إنشاء DataFrame جديد تماماً "أبيض يا ورد" بدون أي أعمدة مخفية
+                df_final = pd.DataFrame(final_data_list)
+
+                st.success("✅ تم الترتيب بنجاح!")
+                # المعاينة للتأكد (يجب أن تبدأ البيانات من العمود 0 فوراً)
+                st.table(df_final.head(10))
+
+                # --- 4. التصدير المظبوط ---
+                output = BytesIO()
+                with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+                    # البدء من A1 (index=False و header=False)
+                    df_final.to_excel(writer, index=False, header=False, sheet_name='Sheet1')
+                    
+                    workbook = writer.book
+                    worksheet = writer.sheets['Sheet1']
+                    # إجبار الاتجاه من الشمال لليمين
+                    worksheet.set_right_to_left(False) 
+                
+                st.download_button("📥 تحميل ملف الـ Paste المباشر", output.getvalue(), f"Ready_{target_sheet}.xlsx")
+
+        except Exception as e:
+            st.error(f"⚠️ خطأ في أسماء الأعمدة: {e}")
