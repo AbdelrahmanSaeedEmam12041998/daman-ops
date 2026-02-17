@@ -2,47 +2,45 @@ import streamlit as st
 import pandas as pd
 from io import BytesIO
 
-# --- 1. التصميم العالمي (Modern White UI) ---
-st.set_page_config(page_title="Daman Elite v4.2", layout="wide")
+# --- 1. تصميم نظيف جداً (ثيم أبيض) ---
+st.set_page_config(page_title="Daman Final Fix", layout="wide")
+
 st.markdown("""
     <style>
-    .stApp { background-color: #ffffff; color: #2d3436; }
-    .main-header { font-size: 30px; color: #0984e3; font-weight: 800; text-align: center; padding: 20px; border-bottom: 1px solid #dfe6e9; }
-    .stButton>button { background: linear-gradient(135deg, #0984e3, #6c5ce7); color: white; border-radius: 8px; font-weight: bold; border: none; width: 100%; height: 3em; }
-    .stTable { border: 1px solid #dfe6e9; border-radius: 10px; }
+    .stApp { background-color: #ffffff; }
+    .main-header { font-size: 28px; color: #1e40af; font-weight: bold; text-align: center; padding: 20px; border-bottom: 2px solid #f3f4f6; }
+    .stButton>button { background-color: #2563eb; color: white; width: 100%; border-radius: 8px; font-weight: bold; }
     </style>
     """, unsafe_allow_html=True)
 
+# --- 2. الدخول ---
 if "authenticated" not in st.session_state: st.session_state["authenticated"] = False
 if not st.session_state["authenticated"]:
-    st.markdown("<div class='main-header'>🔐 Daman Data System</div>", unsafe_allow_html=True)
-    pwd = st.text_input("Security Key:", type="password")
-    if st.button("Enter"):
+    st.markdown("<div class='main-header'>🔒 دخول نظام ضامن</div>", unsafe_allow_html=True)
+    pwd = st.text_input("كلمة المرور:", type="password")
+    if st.button("دخول"):
         if pwd == "Dispute@Damen.1248#1248*":
             st.session_state["authenticated"] = True
             st.rerun()
-        else: st.error("Invalid Key")
 else:
     with st.sidebar:
-        st.header("⚙️ الإعدادات")
         target_sheet = st.selectbox("🎯 اختر نوع الشيت:", 
                                    ["Damen's complaint", "Cases V.f cash", "Orange cash", 
                                     "Etisalat Cash", "successful Receipt", "Refund Transactions"])
 
-    st.markdown(f"<div class='main-header'>🚀 {target_sheet} (LTR Mode)</div>", unsafe_allow_html=True)
-    uploaded_file = st.file_uploader("ارفع ملف الإكسيل الخام", type=["xlsx", "xls"])
+    st.markdown(f"<div class='main-header'>🚀 معالجة {target_sheet}</div>", unsafe_allow_html=True)
+    uploaded_file = st.file_uploader("ارفع الملف الخام", type=["xlsx", "xls"])
 
     if uploaded_file:
         try:
             df_raw = pd.read_excel(uploaded_file, engine='openpyxl').fillna("")
             
-            if st.button("تحويل وترتيب البيانات"):
-                final_data = []
+            if st.button("تنفيذ الترتيب النهائي"):
+                processed_rows = []
                 for _, row in df_raw.iterrows():
-                    # تنظيف الـ ID وتجهيز البيانات
+                    # تنظيف البيانات
                     raw_id = str(row.get('ID', '')).split('.')[0].strip()
                     damen_id = raw_id if target_sheet == "Refund Transactions" else f"Damen{raw_id}"
-                    
                     amt = row.get('القيمه_الكليه', '')
                     m_code = row.get('كود_التاجر', '')
                     m_name = row.get('اسم_التاجر', '')
@@ -51,37 +49,42 @@ else:
                     service = row.get('اسم_الخدمة', '')
                     date_val = row.get('تاريخ_الإنشاء', '')
 
-                    # --- الترتيب الصارم من الشمال لليمين حسب صورتك ---
+                    # --- الترتيب الصارم من الشمال لليمين (A, B, C...) بدون أي فراغات ---
                     if target_sheet == "Damen's complaint":
-                        row_content = [provider, "رفع جماعي", "", date_val, amt, damen_id, service, m_code, m_name, gov]
+                        # مزود | معلومات | مرجع | تاريخ | قيمة | رقم عملية | خدمة | كود | تاجر | محافظة
+                        line = [provider, "رفع جماعي", "", date_val, amt, damen_id, service, m_code, m_name, gov]
                     
                     elif any(x in target_sheet for x in ["V.f", "Orange", "Etisalat"]):
-                        row_content = ["رفع جماعي", "", date_val, amt, damen_id, m_code, m_name, gov]
+                        # معلومات | مرجع | تاريخ | قيمة | رقم عملية | كود | تاجر | محافظة
+                        line = ["رفع جماعي", "", date_val, amt, damen_id, m_code, m_name, gov]
                     
                     elif target_sheet == "successful Receipt":
-                        row_content = [provider, date_val, amt, "رفع جماعي", damen_id, service]
+                        # مزود | تاريخ | قيمة | معلومات | رقم عملية | خدمة
+                        line = [provider, date_val, amt, "رفع جماعي", damen_id, service]
                     
                     else: # Refund Transactions
-                        row_content = [damen_id, "رفع جماعي", "", date_val, amt, service, provider, m_name]
+                        # رقم عملية | معلومات | مرجع | تاريخ | قيمة | خدمة | مزود | تاجر
+                        line = [damen_id, "رفع جماعي", "", date_val, amt, service, provider, m_name]
                     
-                    final_data.append(row_content)
+                    processed_rows.append(line)
 
-                df_final = pd.DataFrame(final_data)
+                # إنشاء الشيت النهائي (تصفير أي أعمدة زايدة)
+                df_final = pd.DataFrame(processed_rows)
 
-                st.markdown("### 📋 معاينة الشيت (من الشمال لليمين):")
-                st.table(df_final.head(10))
+                st.subheader("📋 معاينة الداتا (من الشمال لليمين):")
+                st.dataframe(df_final.head(10), use_container_width=True)
 
-                # --- التصدير مع جعل الشيت Left-to-Right ---
+                # --- التصدير الصحيح ---
                 output = BytesIO()
                 with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-                    df_final.to_excel(writer, index=False, header=False)
+                    df_final.to_excel(writer, index=False, header=False, sheet_name='Damen_Report')
                     
-                    # الوصول إلى "Worksheet" لتغيير الاتجاه
+                    # ضبط اتجاه الشيت من الشمال لليمين بدون أخطاء
                     workbook = writer.book
-                    worksheet = writer.sheets['Sheet1']
-                    # السطر السحري لجعل الاتجاه من الشمال لليمين
-                    worksheet.right_to_left(False) 
+                    worksheet = writer.sheets['Damen_Report']
+                    # السطر الصحيح لعمل RTL = False (يعني يبدأ من الشمال A)
+                    worksheet.set_right_to_left(False) 
                 
-                st.download_button("📥 تحميل الملف النهائي (LTR)", output.getvalue(), f"{target_sheet}_LTR.xlsx")
+                st.download_button("📥 تحميل الملف الجاهز للصق", output.getvalue(), f"{target_sheet}.xlsx")
         except Exception as e:
-            st.error(f"Error: {e}")
+            st.error(f"⚠️ خطأ غير متوقع: {e}")
