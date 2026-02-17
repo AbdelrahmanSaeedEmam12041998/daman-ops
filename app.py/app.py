@@ -1,16 +1,15 @@
 import streamlit as st
 import pandas as pd
 from io import BytesIO
-import os
 
-# --- 1. استايل عالمي (Dark Blue & Clean White) ---
-st.set_page_config(page_title="Daman Pro Converter", page_icon="🛡️", layout="wide")
+# --- 1. واجهة المستخدم العالمية (تصميم مودرن) ---
+st.set_page_config(page_title="Daman Pro Converter", layout="wide")
 
 st.markdown("""
     <style>
-    .stApp { background-color: #f4f7f9; }
-    .main-header { font-size: 30px; color: #1e3a8a; font-weight: bold; text-align: center; margin-bottom: 20px; }
-    .card { background-color: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+    .main { background-color: #0e1117; color: white; }
+    .stButton>button { width: 100%; border-radius: 20px; background: linear-gradient(45deg, #007bff, #00d4ff); color: white; font-weight: bold; border: none; }
+    .stDataFrame { border: 1px solid #333; border-radius: 10px; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -18,41 +17,40 @@ st.markdown("""
 if "authenticated" not in st.session_state: st.session_state["authenticated"] = False
 
 if not st.session_state["authenticated"]:
-    st.markdown("<div class='main-header'>🔐 بوابة ضامن للعمليات</div>", unsafe_allow_html=True)
-    with st.container():
-        pwd = st.text_input("كلمة المرور", type="password")
-        if st.button("دخول"):
-            if pwd == "Dispute@Damen.1248#1248*":
-                st.session_state["authenticated"] = True
-                st.rerun()
-            else: st.error("❌ كلمة المرور غير صحيحة")
+    st.title("🛡️ نظام ضامن - تسجيل الدخول")
+    pwd = st.text_input("أدخل كلمة المرور:", type="password")
+    if st.button("دخول"):
+        if pwd == "Dispute@Damen.1248#1248*":
+            st.session_state["authenticated"] = True
+            st.rerun()
+        else: st.error("❌ كلمة المرور خطأ")
 else:
-    # --- 3. الواجهة الجانبية (Sidebar) ---
+    # --- 3. الإعدادات الجانبية ---
     with st.sidebar:
-        st.markdown("### ⚙️ التحكم")
-        target_sheet = st.selectbox("🎯 اختر الشيت المستهدف:", 
+        st.header("⚙️ الإعدادات")
+        target_sheet = st.selectbox("🎯 اختر نوع الشيت:", 
                                    ["Damen's complaint", "Cases V.f cash", "Orange cash", 
                                     "Etisalat Cash", "successful Receipt", "Refund Transactions"])
-        st.divider()
-        st.write("✅ النسخة المستقرة v3.0")
+        st.success(f"الوضع الحالي: {target_sheet}")
 
-    st.markdown(f"<div class='main-header'>🛡️ محول بيانات {target_sheet}</div>", unsafe_allow_html=True)
+    st.title(f"🚀 محول بيانات {target_sheet}")
+    st.write("ارفع ملف الإكسيل وهيتم ترتيبه فوراً بدون أي أعمدة فاضية.")
 
-    # --- 4. منطقة الرفع ---
-    uploaded_file = st.file_uploader("📂 اسحب ملف الإكسيل الخام هنا", type=["xlsx", "xls"])
+    # --- 4. معالجة الملف ---
+    uploaded_file = st.file_uploader("📂 اسحب الملف هنا", type=["xlsx", "xls"])
 
     if uploaded_file:
         try:
+            # قراءة الملف الأصلي
             df_in = pd.read_excel(uploaded_file, engine='openpyxl').fillna("")
             
-            st.info("✅ تم قراءة الملف بنجاح. اضغط على الزر أدناه للتحويل.")
-            
-            if st.button("🚀 تحويل وترتيب الداتا"):
-                final_rows = []
+            if st.button("✨ تنفيذ الترتيب السحري"):
+                new_data = []
                 for _, row in df_in.iterrows():
-                    # تنظيف الداتا
+                    # تجهيز البيانات الأساسية
                     raw_id = str(row.get('ID', '')).split('.')[0].strip()
                     final_op = raw_id if target_sheet == "Refund Transactions" else f"Damen{raw_id}"
+                    
                     amt = row.get('القيمه_الكليه', '')
                     m_code = row.get('كود_التاجر', '')
                     m_name = row.get('اسم_التاجر', '')
@@ -60,35 +58,43 @@ else:
                     p_provider = row.get('مزود_الخدمة_الاساسي', '')
                     service = row.get('اسم_الخدمة', '')
 
-                    # الترتيب الصارم (بدون أي أصفار أو أعمدة ترحيل في البداية)
+                    # --- الترتيب الصارم بناءً على الصورة (بدون أي مسافات في البداية) ---
                     if target_sheet == "Damen's complaint":
-                        data = [p_provider, "رفع جماعي", "", "", amt, final_op, service, m_code, m_name, gov]
-                    elif any(x in target_sheet for x in ["V.f", "Orange", "Etisalat"]):
-                        data = ["رفع جماعي", "", "", amt, final_op, "", m_code, m_name, gov]
-                    elif target_sheet == "successful Receipt":
-                        data = [p_provider, "", amt, "رفع جماعي", final_op, service]
-                    elif target_sheet == "Refund Transactions":
-                        data = [final_op, "رفع جماعي", "", "", amt, service, p_provider, m_name]
+                        # يبدأ من أول خلية A1: مزود | ملاحظات | مرجع | تاريخ | قيمة | رقم عملية | خدمة | كود | تاجر | محافظة
+                        row_list = [p_provider, "رفع جماعي", "", "", amt, final_op, service, m_code, m_name, gov]
                     
-                    final_rows.append(data)
+                    elif any(x in target_sheet for x in ["V.f", "Orange", "Etisalat"]):
+                        # يبدأ من A1: ملاحظات | مرجع | تاريخ | قيمة | رقم عملية | كود | تاجر | محافظة
+                        row_list = ["رفع جماعي", "", "", amt, final_op, m_code, m_name, gov]
+                    
+                    elif target_sheet == "successful Receipt":
+                        # يبدأ من A1: مزود | تاريخ | قيمة | ملاحظات | رقم عملية | خدمة
+                        row_list = [p_provider, "", amt, "رفع جماعي", final_op, service]
+                    
+                    else: # Refund Transactions
+                        # يبدأ من A1: رقم عملية | ملاحظات | مرجع | تاريخ | قيمة | خدمة | مزود | تاجر
+                        row_list = [final_op, "رفع جماعي", "", "", amt, service, p_provider, m_name]
+                    
+                    new_data.append(row_list)
 
-                # إنشاء الجدول النهائي
-                final_df = pd.DataFrame(final_rows)
+                # إنشاء الـ DataFrame الجديد (بدون أسماء أعمدة وبدون Index)
+                final_df = pd.DataFrame(new_data)
                 
-                # عرض معاينة "نظيفة" جداً
-                st.markdown("### 📋 معاينة البيانات الجاهزة")
-                st.dataframe(final_df, use_container_width=True)
+                st.subheader("📋 المعاينة النهائية (جاهز للصق)")
+                st.table(final_df.head(10)) # استخدام st.table بيشيل أرقام الصفوف المزعجة
 
-                # زر التحميل
+                # التصدير لإكسيل
                 output = BytesIO()
                 with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+                    # header=False (عشان ميبقاش فيه صف عناوين)
+                    # index=False (عشان ميبقاش فيه عمود أرقام صفوف في الأول)
                     final_df.to_excel(writer, index=False, header=False)
                 
                 st.download_button(
-                    label="📥 تحميل الملف النهائي (جاهز للصق المباشر)",
+                    label="📥 تحميل الملف النهائي (بدون أعمدة فارغة)",
                     data=output.getvalue(),
-                    file_name=f"Fixed_{target_sheet}.xlsx",
+                    file_name=f"Ready_{target_sheet}.xlsx",
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 )
         except Exception as e:
-            st.error(f"⚠️ حدث خطأ أثناء المعالجة: {e}")
+            st.error(f"⚠️ خطأ: {e}")
